@@ -5,8 +5,8 @@ load_dotenv()
 
 class Config:
     # Bot Configuration
-    TELEGRAM_BOT_TOKEN = os.getenv('8343715238:AAEsxvZN7A2R8lssEn8lIqdLp_sxRZ2YtKY')
-    ADMIN_USER_ID = int(os.getenv('7558715645', 0))
+    TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    ADMIN_USER_ID = int(os.getenv('ADMIN_USER_ID', 0))
     
     # API Configuration
     API_BASE_URL = os.getenv('API_BASE_URL', 'https://coderkartik.great-site.net/youtube/api/index.php')
