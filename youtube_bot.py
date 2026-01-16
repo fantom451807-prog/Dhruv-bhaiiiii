@@ -10,6 +10,7 @@ import logging
 import asyncio
 import re
 import json
+import sys
 from typing import Dict, Optional
 from datetime import datetime
 
@@ -46,6 +47,7 @@ class YouTubeDownloaderBot:
     def __init__(self):
         self.config = Config
         self.user_data: Dict[int, Dict] = {}
+        self.application = None
         
     def extract_video_id(self, url: str) -> Optional[str]:
         """Extract YouTube video ID from URL"""
@@ -359,8 +361,8 @@ Last updated: {}
             logger.error(f"Error processing video request: {e}")
             await processing_msg.edit_text(
                 "❌ **An error occurred**\n\n"
-                "Error details: {}\n\n"
-                "Please try again or contact support.".format(str(e)),
+                f"Error details: {str(e)}\n\n"
+                "Please try again or contact support.",
                 parse_mode='Markdown'
             )
     
@@ -402,7 +404,7 @@ Last updated: {}
             )
         
         elif callback_data.startswith("download_"):
-            await self.process_download_request(query, callback_data)
+            await self.process_download_request(query, callback_data, context)
         
         elif callback_data.startswith("set_quality_"):
             quality = callback_data.replace("set_quality_", "")
@@ -435,7 +437,7 @@ Last updated: {}
                 parse_mode='Markdown'
             )
     
-    async def process_download_request(self, query, callback_data: str):
+    async def process_download_request(self, query, callback_data: str, context: ContextTypes.DEFAULT_TYPE):
         """Process the actual download request"""
         # Extract quality and video ID from callback data
         parts = callback_data.split('_')
@@ -551,17 +553,17 @@ Last updated: {}
                 
             else:
                 await query.edit_message_text(
-                    "❌ **Download Failed**\n\n"
-                    "API returned error code: {}\n\n"
-                    "Please try again or choose a different quality.".format(response.status_code),
+                    f"❌ **Download Failed**\n\n"
+                    f"API returned error code: {response.status_code}\n\n"
+                    "Please try again or choose a different quality.",
                     parse_mode='Markdown'
                 )
                 
         except Exception as e:
             logger.error(f"Error downloading video: {e}")
             await query.edit_message_text(
-                "❌ **Download Error**\n\n"
-                "An error occurred while downloading:\n"
+                f"❌ **Download Error**\n\n"
+                f"An error occurred while downloading:\n"
                 f"`{str(e)}`\n\n"
                 "Please try again or contact support.",
                 parse_mode='Markdown'
@@ -600,36 +602,45 @@ Last updated: {}
             return
         
         # Create Application
-        application = Application.builder().token(self.config.TELEGRAM_BOT_TOKEN).build()
+        self.application = Application.builder().token(self.config.TELEGRAM_BOT_TOKEN).build()
         
         # Add command handlers
-        application.add_handler(CommandHandler("start", self.start_command))
-        application.add_handler(CommandHandler("help", self.help_command))
-        application.add_handler(CommandHandler("settings", self.settings_command))
-        application.add_handler(CommandHandler("status", self.status_command))
+        self.application.add_handler(CommandHandler("start", self.start_command))
+        self.application.add_handler(CommandHandler("help", self.help_command))
+        self.application.add_handler(CommandHandler("settings", self.settings_command))
+        self.application.add_handler(CommandHandler("status", self.status_command))
         
         # Add message handler
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
         
         # Add callback query handler
-        application.add_handler(CallbackQueryHandler(self.handle_callback_query))
+        self.application.add_handler(CallbackQueryHandler(self.handle_callback_query))
         
         # Add error handler
-        application.add_error_handler(self.error_handler)
+        self.application.add_error_handler(self.error_handler)
         
         # Start the bot
         print("\n" + "="*50)
         print("🎬 YouTube Video Downloader Bot")
         print("="*50)
-        print(f"🤖 Bot Username: @{application.bot.username}")
         print(f"🔗 API URL: {self.config.API_BASE_URL}")
         print("📊 Status: Starting...")
         print("="*50)
+        print("🤖 Bot is running...")
+        print("Press Ctrl+C to stop")
+        print("="*50)
         
         # Run the bot
-        application.run_polling(allowed_updates=Update.ALL_TYPES)
+        self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 # Run the bot
 if __name__ == '__main__':
-    bot = YouTubeDownloaderBot()
-    bot.run()
+    try:
+        bot = YouTubeDownloaderBot()
+        bot.run()
+    except KeyboardInterrupt:
+        print("\n\nBot stopped by user.")
+        sys.exit(0)
+    except Exception as e:
+        print(f"\n\n❌ Error: {e}")
+        sys.exit(1)
